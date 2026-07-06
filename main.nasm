@@ -295,6 +295,59 @@ x11_next_id:
     pop rbp
     ret
 
+
+;open the font on the server side
+;@param rdi:socket fd
+;@param esi:font id
+x11_open_font:
+static x11_open_font:function
+    push rbp
+    mov rbp,rsp
+
+    $define OPEN_FONT_NAME_BYTE_COUNT 5 ; fixed font length is 5 bytes
+    %define OPEN_FONT_PADDING ((4-(OPEN_FONT_NAME_BYTE_COUNT%4))) ;fixed alingment 4 bytes
+
+    ; open font request packet size in u32
+    ; 3 uint32_t = 12 bytes
+    ; pass fixed font 
+    ; name bytes = 5, padding =3
+    ; OPEN_FONT_PACKET_U32_COUNT  = 5
+    ; full request size = 4*5 = 20 bytes
+    %define OPEN_FONT_PACKET_U32_COUNT (3+
+    (OPEN_FONT_NAME_BYTE_COUNT+OPEN_FONT_PADDING)/4)
+    
+    ;0x2d = 45
+    %define X11_OP_REQ_OPEN_FONT 0x2d
+
+    sub rsp,6*8 ; for uint8_t packet[48]
+
+    ; write request 4 bytes data
+    mov DWORD [rsp+0*4], X11_OP_REQ_OPEN_FONT | 
+    (OPEN_FONT_NAME_BYTE_COUNT << 16)
+
+    mov DWORD [rsp+1*4], esi ; input font id
+    mov DWORD [rsp+2*4], OPEN_FONT_NAME_BYTE_COUNT ; font name length
+    mov BYTE [rsp+3*4+0], 'f'
+    mov BYTE [rsp+3*4+1], 'i'
+    mov BYTE [rsp+3*4+2], 'x'
+    mov BYTE [rsp+3*4+3], 'e'
+    mov BYTE [rsp+3*4+4], 'd'
+
+    mov rax, SYSCALL_WRITE
+    mov rdi, rdi
+    lea rsi, [rsp]
+    mov rdx, OPEN_FONT_PACKET_U32_COUNT * 4
+    syscall
+
+    cmp rax, OPEN_FONT_PACKET_U32_COUNT * 4
+    jnz die
+
+    add rsp, 6*8
+
+    pop rbp
+    ret
+
+
 section .text
 global _start
 _start:
