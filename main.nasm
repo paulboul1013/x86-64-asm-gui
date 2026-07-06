@@ -275,6 +275,26 @@ static x11_send_handshake:function
     ret ;root window id
 
 
+; Increament the global id
+; @return:new id
+x11_next_id:
+    push rbp
+    mov rbp,rsp
+
+    mov eax,DWORD [id] ; load global id
+
+    mov edi,DWORD [id_base] ; load global id_base
+    mov edx,DWORD [id_mask] ; load global id_mask
+
+    ; return id_mask & (id) | id_base
+    and eax, edx
+    or eax ,edi
+
+    add DWORD [id],1 ; Increament id
+
+    pop rbp
+    ret
+
 section .text
 global _start
 _start:
