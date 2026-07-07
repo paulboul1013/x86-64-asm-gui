@@ -313,8 +313,7 @@ static x11_open_font:function
     ; name bytes = 5, padding =3
     ; OPEN_FONT_PACKET_U32_COUNT  = 5
     ; full request size = 4*5 = 20 bytes
-    %define OPEN_FONT_PACKET_U32_COUNT (3+
-    (OPEN_FONT_NAME_BYTE_COUNT+OPEN_FONT_PADDING)/4)
+    %define OPEN_FONT_PACKET_U32_COUNT (3+(OPEN_FONT_NAME_BYTE_COUNT+OPEN_FONT_PADDING)/4)
     
     ;0x2d = 45
     %define X11_OP_REQ_OPEN_FONT 0x2d
