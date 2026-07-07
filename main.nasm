@@ -555,7 +555,7 @@ static poll_messages:function
 
         .draw_text:
         mov rdi, [rsp+0*4] ;socket fd
-        lea ris, [hello_world] ;string
+        lea rsi, [hello_world] ;string
         mov edx, 13; length
         mov ecx, [rsp+16] ; window id
         mov r8d, [rsp+20] ; gc id
@@ -572,6 +572,75 @@ static poll_messages:function
     pop rbp
     ret
 
+
+; Draw text in x11 window with server-side text rendering
+; @param rdi : socket fd
+; @paramd ris : text string
+; @param edx  : text string length in bytes
+; @param ecx : window id
+; @param r8d : gc id
+; @param r9d : packed x and y
+
+x11_draw_text:
+static x11_draw_text:function
+    push rbp
+    mov rbp, rsp
+
+    sub rsp ,1024
+    
+    mov DWORD [rsp+1*4],ecx ;window id
+    mov DWORD [rsp+2*4],r8d ;gc id
+    mov DWORD [rsp+3*4],r9d ;packed x and y
+    
+    mov r8d , edx ; store text length in r8d since edx will be overwritten
+
+    mov QWORD [rsp+1024-8] , rdi; store socket fd on the stack to free the register
+
+    ;compute padding and packet u32 count with division and modulo 4
+    mov eax, edx ; put dividend in eax
+    mov ecx, 4 ; put divisor in ecx
+    cdq  ;sign extend
+    idiv ecx ; compute eax/ecx and put remainder in the edx
+    
+    ; llvm optimizer magic: (4-x)%4 == -x & 3 ,for some reason
+    neg edx
+    and edx,3 
+    mov r9d ,edx ;store padding in r9d
+
+    mov eax, r8d
+    add eax, r9d
+    shr eax,2  ; compute eax/=4
+    add eax, 4 ; eax not contains the packet u32 count
+
+    %define X11_OP_REQ_IMAGE_TEXT8 0x4c
+    mov DWORD [rsp+0*4], r8d
+    shl DWORD [rsp+0*4], 8
+    or DWORD [rsp+0*4], X11_OP_REQ_IMAGE_TEXT8
+    mov ecx, eax
+    shl ecx, 16
+    or [rsp+0*4], ecx
+
+    ; copy the text string into the packet data on the stack
+    mov rsi,rsi ; source string in rsi
+    lea rdi, [rsp+4*4]  ; destination
+    cld ; move forward
+    mov ecx, r8d ; string length
+    rep movsb ; copy
+
+    mov rdx, rax ; packet u32 count
+    imul rdx, 4
+    mov rax, SYSCALL_WRITE
+    mov rdi, QWORD [rsp+1024-8] ;fd
+    lea rsi, [rsp]
+    syscall
+
+    cmp rax, rdx
+    jnz die
+
+    add rsp, 1024
+
+    pop rbp
+    ret
 
 section .text
 global _start
