@@ -480,7 +480,7 @@ static x11_read_reply:function
     
     mov rax, SYSCALL_READ
     mov rdi, rdi
-    lea ris, [rsp]
+    lea rsi, [rsp]
     mov rdx , 32
     syscall
 
