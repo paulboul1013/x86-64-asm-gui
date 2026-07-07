@@ -431,6 +431,44 @@ static x11_map_window:function
     pop rbp
     ret
 
+; set a fd in non-blocking mode
+;@ param rdi : fd
+set_fd_non_blocking:
+static set_fd_non_blocking:function
+    push rbp
+    mov rbp, rsp
+
+    %define F_GETFL 3
+    %define F_SETFL 4
+
+    %define O_NONBLOCK 2048
+    
+    mov rax, SYSCALL_FCNTL
+    mov rdi, rdi
+    mov rsi, F_GETFL
+    mov rdx ,0
+    syscall
+
+    cmp rax,0
+    jl die
+
+    ; 'or' the current file status flag with O_NONBLOCK 
+    mov rdx, rax
+    or rdx , O_NONBLOCK
+    
+    mov rax, SYSCALL_FCNTL
+    mov rdi, rdi
+    mov rsi, F_SETFL
+    mov rdx, rdx
+    syscall
+
+    cmp rax,0
+    jl die
+
+    pop rbp
+    ret
+
+
 ; read the x11 server reply
 ; @return : message code in al
 x11_read_reply:
