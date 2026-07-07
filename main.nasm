@@ -366,8 +366,7 @@ static x11_create_gc:function
 
 %define CREATE_GC_FLAGS X11_FLAG_GC_BG | X11_FLAG_GC_FG | X11_FLAG_GC_FONT
 %define CREATE_GC_PACKET_FLAG_COUNT 3
-%define CREATE_GC_PACKET_U32_COUNT (4+
-CREATE_GC_PACKET_FLAG_COUNT)
+%define CREATE_GC_PACKET_U32_COUNT (4+CREATE_GC_PACKET_FLAG_COUNT)
 %define MY_COLOR_RGB 0x0000ffff
 
     mov DWORD [rsp+0*4] ,X11_OP_REQ_CREATE_GC | (CREATE_GC_PACKET_U32_COUNT<<16)
@@ -418,8 +417,7 @@ static x11_create_window:function
 
     sub rsp, 12*8
 
-    mov DWORD [rsp+0*4], X11_OP_REQ_CREATE_WINDOW |
-    (CREATE_WINDOW_PACKET_U32_COUNT <<16)
+    mov DWORD [rsp+0*4], X11_OP_REQ_CREATE_WINDOW | (CREATE_WINDOW_PACKET_U32_COUNT <<16)
     mov DWORD [rsp+1*4], esi ; new window id
     mov DWORD [rsp+2*4], edx ; root window id
     mov DWORD [rsp+3*4], r8d ; packed x and y
