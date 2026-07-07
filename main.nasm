@@ -304,8 +304,8 @@ static x11_open_font:function
     push rbp
     mov rbp,rsp
 
-    $define OPEN_FONT_NAME_BYTE_COUNT 5 ; fixed font length is 5 bytes
-    %define OPEN_FONT_PADDING ((4-(OPEN_FONT_NAME_BYTE_COUNT%4))) ;fixed alingment 4 bytes
+    %define OPEN_FONT_NAME_BYTE_COUNT 5 ; fixed font length is 5 bytes
+    %define OPEN_FONT_PADDING ((4 - (OPEN_FONT_NAME_BYTE_COUNT % 4)) % 4) ;fixed alingment 4 bytes
 
     ; open font request packet size in u32
     ; 3 uint32_t = 12 bytes
