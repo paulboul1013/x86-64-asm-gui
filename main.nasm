@@ -504,7 +504,7 @@ static poll_messages:function
     push rbp
     mov rbp, rsp
 
-    sub rsp, 16
+    sub rsp, 32
 
     %define POLLIN 0x001
     %define POLLPRI 0x002
@@ -687,6 +687,13 @@ _start:
     mov esi, ebx 
     call x11_map_window
 
+    mov rdi, r15 ; socket fd
+    call set_fd_non_blocking
+    
+    mov rdi, r15 ; socket fd
+    mov esi, ebx ; window id
+    mov edx, r13d ; gc id
+    call poll_messages
 
     mov rax, SYSCALL_EXIT
     mov rdi, 0
