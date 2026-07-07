@@ -321,8 +321,7 @@ static x11_open_font:function
     sub rsp,6*8 ; for uint8_t packet[48]
 
     ; write request 4 bytes data
-    mov DWORD [rsp+0*4], X11_OP_REQ_OPEN_FONT | 
-    (OPEN_FONT_NAME_BYTE_COUNT << 16)
+    mov DWORD [rsp+0*4], X11_OP_REQ_OPEN_FONT | (OPEN_FONT_NAME_BYTE_COUNT << 16)
 
     mov DWORD [rsp+1*4], esi ; input font id
     mov DWORD [rsp+2*4], OPEN_FONT_NAME_BYTE_COUNT ; font name length
