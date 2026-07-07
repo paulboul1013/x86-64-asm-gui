@@ -431,6 +431,31 @@ static x11_map_window:function
     pop rbp
     ret
 
+; read the x11 server reply
+; @return : message code in al
+x11_read_reply:
+static x11_read_reply:function
+    push rbp
+    mov rbp, rsp
+
+    sub rsp, 32
+    
+    mov rax, SYSCALL_READ
+    mov rdi, rdi
+    lea ris, [rsp]
+    mov rdx , 32
+    syscall
+
+    cmp rax,1 
+    jle die
+
+    mov al, BYTE [rsp]
+
+    add rsp, 32
+    
+    pop rbp
+    ret
+
 section .text
 global _start
 _start:
@@ -477,8 +502,7 @@ _start:
     call x11_map_window
 
 
-    ; end
-    mov rax,SYSCALL_EXIT
-    mov rdi,0
+    mov rax, SYSCALL_EXIT
+    mov rdi, 0
     syscall
     
