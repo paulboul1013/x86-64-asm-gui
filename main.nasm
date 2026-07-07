@@ -556,7 +556,7 @@ static poll_messages:function
         .draw_text:
         mov rdi, [rsp+0*4] ;socket fd
         lea rsi, [hello_world] ;string
-        mov edx, 13; length
+        mov edx, 11; length
         mov ecx, [rsp+16] ; window id
         mov r8d, [rsp+20] ; gc id
         mov r9d, 100 ; x
@@ -567,7 +567,7 @@ static poll_messages:function
     
         jmp .loop
 
-    add rsp, 16
+    add rsp, 32
 
     pop rbp
     ret
