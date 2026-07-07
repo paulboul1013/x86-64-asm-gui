@@ -1,9 +1,15 @@
 BITS 64; 64 bits
 CPU X64; target the x86_64 family of CPUs
 
-%define SYSCALL_EXIT 60
+section .rodata
 
+sun_path: db "/tmp/.X11-unix/X0" ,0
+static sun_path:data
 
+hello_world: db "hello,world" 
+static hello_world:data
+
+section .text
 
 %define AF_UNIX 1
 %define SOCK_STREAM 1
@@ -13,11 +19,9 @@ CPU X64; target the x86_64 family of CPUs
 %define STDOUT 1
 %define SYSCALL_SOCKET 41
 %define SYSCALL_CONNECT 42
+%define SYSCALL_EXIT 60
+%define SYSCALL_FCNTL 72
 
-section .rodata
-
-sun_path: db "/tmp/.X11-unix/X0" ,0
-static sun_path:data
 
 section .data
 
@@ -33,55 +37,8 @@ static id_mask:data
 root_visual_id: dd 0
 static root_visual_id:data
 
-print_world:
-    push rbp
-    mov rbp, rsp
+section .text  
 
-    sub rsp, 16
-    mov BYTE [rsp+0], ' '
-    mov BYTE [rsp + 1], 'w'
-    mov BYTE [rsp + 2], 'o'
-    mov BYTE [rsp + 3], 'r'
-    mov BYTE [rsp + 4], 'l'
-    mov BYTE [rsp + 5], 'd' 
-
-    mov rax,SYSCALL_WRITE
-    mov rdi,STDOUT
-    lea rsi, [rsp]
-    mov rdx, 6
-    syscall
-
-    add rsp,16
-    
-    pop rbp
-    ret
-
-
-print_hello:
-    push rbp
-    mov rbp,rsp
-
-    sub rsp,16
-    mov BYTE [rsp+0],'h'
-    mov BYTE [rsp+1],'e'
-    mov BYTE [rsp+2],'l'
-    mov BYTE [rsp+3],'l'
-    mov BYTE [rsp+4],'o'
-
-    mov rax,SYSCALL_WRITE
-    mov rdi,STDOUT
-    lea rsi,[rsp]
-    mov rdx,5
-    syscall
-
-    call print_world
-
-    add rsp,16
-
-    pop rbp
-    ret
-
-    
 ; Create a UNIX domain socket and connect to the X11 server.
 ; @returns The socket file descriptor.
 x11_connect_to_server:
@@ -92,7 +49,7 @@ static x11_connect_to_server:function
     ; open a unix socket
     mov rax,SYSCALL_SOCKET
     mov rdi, AF_UNIX
-    mov rsi,SOCK_STREAM
+    mov rsi, SOCK_STREAM
     mov rdx,0 
     syscall
 
@@ -135,15 +92,17 @@ die:
     mov rdi,1
     syscall
 
-; 送handshake到x11 server和讀取系統返回資訊
-; @參數 rdi: socket file descriptor
-; @返回 window root id (uint32_t)在 rax
+; sending handshake to x11 server and reading the system response
+; @param rdi: socket fd
+; @return: window root id (uint32_t) in rax
 x11_send_handshake:
 static x11_send_handshake:function
     push rbp
     mov rbp,rsp
-    
-    
+    push r12                    ; 保存 r12（callee-saved）
+
+    mov r12, rdi               ; ★ 關鍵：立即把 socket fd 存入 r12 保存
+
     sub rsp,1<<15 ;32 KB for return response
 
     ;fill X11 connection request
@@ -166,45 +125,45 @@ static x11_send_handshake:function
 
     ; send the handshake to the server: write(2)
     ; ssize_t write(int fd, const void *buf,size_t count)
-    mov rax,SYSCALL_WRITE
-    mov rdi,rdi ;socket fd already in rdi
-    lea rsi, [rsp] ; buf = rsp
-    mov rdx,12 ; count =12
+    mov rax, SYSCALL_WRITE
+    mov rdi, r12               ; ★ 從 r12 還原 socket fd
+    lea rsi, [rsp]             ; buf = rsp
+    mov rdx, 12                ; count = 12
     syscall
 
-    cmp rax,12 ; check 12 bytes were written
-    jnz die ; if no write 12 bytes, exit
+    cmp rax, 12                ; check 12 bytes were written
+    jnz die                    ; if not 12 bytes, exit
 
     ;read the server response: read(2)
     ; use stack for the read buffer
     ; The x11 server first replies with 8 bytes.
     ; Once these are read, it replies with a much bigger message.
     ;ssize_t read(int fd,void *buf,size_t count)
-    mov rax,SYSCALL_READ
-    mov rdi,rdi
+    mov rax, SYSCALL_READ
+    mov rdi, r12               ; ★ 從 r12 還原 socket fd
     lea rsi, [rsp]
     mov rdx, 8
     syscall
-    
-    cmp rax,8 ;check that server replied with 8 bytes
-    jnz die ; if no, exit
 
-    cmp BYTE [rsp],1 ; check that server sent success (first byte is 1)
+    cmp rax, 8                 ; check that server replied with 8 bytes
+    jnz die                    ; if no, exit
+
+    cmp BYTE [rsp], 1          ; check that server sent success (first byte is 1)
     jnz die
 
 
     ; Read the rest of the server response: read(2)
     ; use the stack for the read buffer
-    mov rax,SYSCALL_READ
-    mov rdi,rdi
-    lea rsi,[rsp]
+    mov rax, SYSCALL_READ
+    mov rdi, r12               ; ★ 從 r12 還原 socket fd
+    lea rsi, [rsp]
     mov rdx, 1<<15
     syscall
 
-    cmp rax,0 ; check that the server replied with something
+    cmp rax, 0                 ; check that the server replied with something
     jle die
 
-    
+
     ; x11 client build window,pixmap,GC resource，need to produce resource id
     ; resource_id_base = *(uint32_t*) (rsp+4)
     mov edx,DWORD [rsp+4]
@@ -271,8 +230,9 @@ static x11_send_handshake:function
 
     ; free the stack buffer
     add rsp, 1<<15
-    pop rbp ;recover caller's rbp
-    ret ;root window id
+    pop r12                    ; 恢復 r12
+    pop rbp                    ; recover caller's rbp
+    ret                        ; root window id
 
 
 ; Increament the global id
@@ -475,8 +435,49 @@ section .text
 global _start
 _start:
     call x11_connect_to_server
+    mov r15, rax ; store socket fd in r15
+
+    mov rdi,rax
+    call x11_send_handshake
+
+    mov r12d ,eax ; store window root id in r12d
+
+    call x11_next_id
+    mov r13d, eax ; store gc_id in r13d
+
+    call x11_next_id
+    mov r14d, eax ; store font_id in r14d
+
+    mov rdi, r15
+    mov esi, r14d
+    call x11_open_font
+
+    mov rdi, r15
+    mov esi, r13d
+    mov edx, r12d
+    mov ecx ,r14d
+    call x11_create_gc
+
+    call x11_next_id
+    
+    mov ebx, eax; store window id in ebx
+
+    mov rdi, r15 ; socket fd
+    mov esi, eax
+    mov edx, r12d
+    mov ecx, [root_visual_id]
+    mov r8d, 200 | (200<<16) ; x and y are 200
+    %define WINDOW_W 800 
+    %define WINDOW_H 600
+    mov r9d, WINDOW_W | (WINDOW_H <<16) 
+    call x11_create_window
+
+    mov rdi, r15 ; socket fd
+    mov esi, ebx 
+    call x11_map_window
 
 
+    ; end
     mov rax,SYSCALL_EXIT
     mov rdi,0
     syscall
