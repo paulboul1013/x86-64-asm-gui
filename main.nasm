@@ -513,11 +513,12 @@ static poll_messages:function
     %define POLLHUP  0x010
     %define POLLNVAL 0x020
 
-    mov DWORD [rsp+0*4], 0
+    mov DWORD [rsp+0*4], edi
     mov DWORD [rsp+1*4], POLLIN
 
     mov DWORD [rsp+16], esi ; window id
     mov DWORD [rsp+20], edx ; gc id
+    mov BYTE [rsp+24], 0 ; exposed (boolean)
 
     .loop:
         mov rax, SYSCALL_POLL
@@ -533,9 +534,6 @@ static poll_messages:function
         je die
         
         cmp DWORD [rsp+2*4], POLLHUP
-        je die
-
-        mov rdi, [rsp+0*4]
         je die
 
         mov rdi, [rsp+0*4]
